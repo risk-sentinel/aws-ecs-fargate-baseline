@@ -82,14 +82,10 @@ control "EF-5.4" do
     next unless svc.fargate?
 
     svc.subnets.each do |subnet_id|
-      rt = aws_route_table(subnet_id: subnet_id)
-      describe "Subnet #{subnet_id} (service #{svc.service_name}) route table" do
-        # A private subnet has no 0.0.0.0/0 route to an igw-.
+      describe "Subnet #{subnet_id} (service #{svc.service_name}) routing" do
+        subject { aws_subnet_routing(subnet_id: subnet_id) }
         it "must not have a default route to an internet gateway" do
-          igw_default = rt.routes.any? do |r|
-            r[:destination_cidr_block] == "0.0.0.0/0" && r[:gateway_id].to_s.start_with?("igw-")
-          end
-          expect(igw_default).to eq(false)
+          expect(aws_subnet_routing(subnet_id: subnet_id).internet_gateway_route?).to eq(false)
         end
       end
     end
