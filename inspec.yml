@@ -1,0 +1,76 @@
+name: aws-ecs-fargate-baseline
+title: AWS ECS Fargate Security Baseline
+maintainer: Risk Sentinel
+copyright: Risk Sentinel
+copyright_email: support@risk-sentinel.org
+license: Apache-2.0
+summary: |
+  Custom Tier-2 InSpec baseline for Amazon ECS on AWS Fargate.
+
+  No CIS or DISA STIG benchmark exists for ECS/Fargate. Controls are
+  anchored, per control, to: NIST SP 800-53 r5; AWS Foundational Security
+  Best Practices (ECS.*); the AWS ECS best-practices guide; NIST SP
+  800-190; and the DISA Container Platform SRG (SRG-CTR V2R4) for
+  DoD-authoritative CCIs. CCI-backed task-definition rules harvested from
+  CIS AWS Compute v1.1.0 (§3 / §11.1) are re-expressed here so the profile
+  stands alone as a complete Fargate baseline.
+
+  In the Fargate model the host OS, container runtime, and orchestrator
+  control plane are AWS-managed (inherited via AWS FedRAMP/DoD ATO); this
+  profile asserts only the customer-configurable projection — task
+  definitions, services, clusters, IAM task/execution roles, network
+  configuration, and the ECR repositories backing task images. See the
+  shared-responsibility matrix in README.md.
+
+  Targets AWS Commercial (aws) and AWS GovCloud non-DoD (aws-us-gov).
+  Built for any consumer; behaviour tuned via inputs.
+version: 0.1.0
+inspec_version: '>= 5.0'
+
+supports:
+  - platform: aws
+
+depends:
+  - name: inspec-aws
+    git: https://github.com/inspec/inspec-aws.git
+    branch: main
+
+inputs:
+  - name: aws_partition
+    type: string
+    value: aws
+    description: Target partition (aws / aws-us-gov).
+  - name: trusted_image_registries
+    type: array
+    value: []
+    description: >-
+      Allowed image-registry prefixes (e.g. ECR repo URIs). Empty = the
+      trusted-registry control fails closed (consumer must declare).
+  - name: ecs_exec_allowed_services
+    type: array
+    value: []
+    description: >-
+      Service ARNs/names permitted to have ECS Exec enabled. Any other
+      service with enableExecuteCommand=true fails EF-7.1.
+  - name: required_tag_keys
+    type: array
+    value: []
+    description: Governance tag keys required on services/clusters/task defs.
+  - name: require_image_digest_pinning
+    type: boolean
+    value: true
+    description: Require container images pinned by @sha256 digest (EF-1.1).
+  - name: max_image_finding_severity
+    type: string
+    value: HIGH
+    description: >-
+      Highest ECR scan-finding severity tolerated before EF-1.7 fails
+      (one of INFORMATIONAL, LOW, MEDIUM, HIGH, CRITICAL).
+  - name: allowed_added_capabilities
+    type: array
+    value: ['NET_BIND_SERVICE']
+    description: Linux capabilities permitted in linuxParameters.capabilities.add.
+  - name: scan_regions
+    type: array
+    value: []
+    description: Region allowlist for region-scoped checks; empty = current region.
