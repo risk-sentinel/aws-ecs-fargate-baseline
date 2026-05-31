@@ -1,0 +1,42 @@
+# Per-control partition applicability — auditor-facing flat table.
+# Values per partition: applicable | not_applicable | partial
+# Keep in sync with `tag applicable_partitions:` on each control.
+#
+# ECS, ECR, IAM, VPC, CloudWatch and KMS all exist in AWS Commercial (aws)
+# and AWS GovCloud non-DoD (aws-us-gov); every control applies to both.
+
+controls:
+  - { id: EF-1.1, title: "Image digest pinning",                aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-1.2, title: "Trusted image registries",            aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-1.3, title: "ECR scan-on-push",                    aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-1.4, title: "ECR tag immutability",                aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-1.7, title: "Image scan-finding severity",         aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.1, title: "No privileged containers",            aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.2, title: "Non-root user",                       aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.3, title: "Read-only root filesystem",           aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.4, title: "Drop ALL caps / add allowlist",       aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.5, title: "No privilege-escalating caps",        aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.6, title: "CPU/memory limits",                   aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.7, title: "ulimits set",                         aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.8, title: "Health check defined",                aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-2.10, title: "No privileged ports",               aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-3.1, title: "No secret-shaped env vars",           aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-3.2, title: "Secrets via SM/SSM ARNs",             aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-4.1, title: "Task role != execution role",         aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-4.2, title: "Task role no wildcard",               aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-4.3, title: "Execution role no wildcard",          aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-4.4, title: "No embedded AWS credentials",         aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-5.1, title: "awsvpc network mode",                 aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-5.2, title: "No public IP",                        aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-5.4, title: "Private subnets",                     aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-5.5, title: "SG no 0.0.0.0/0 ingress",             aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-6.1, title: "Host-net no privileged/root",         aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-6.2, title: "No host PID namespace",               aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-6.3, title: "Latest Fargate platform",             aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-6.5, title: "CMK Fargate ephemeral storage",       aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-7.1, title: "ECS Exec disabled/allowlisted",       aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-7.2, title: "ECS Exec audit logging",              aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-8.1, title: "Container log configuration",         aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-8.3, title: "Container Insights",                  aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-8.4, title: "Required tags",                       aws: applicable, aws-us-gov: applicable, reason: '' }
+  - { id: EF-8.5, title: "Deployment circuit breaker",          aws: applicable, aws-us-gov: applicable, reason: '' }
