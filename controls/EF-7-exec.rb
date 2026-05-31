@@ -35,9 +35,10 @@ end
 
 control "EF-7.2" do
   title "Where ECS Exec is enabled, sessions must be audited and KMS-encrypted"
-  desc "For services permitted to use ECS Exec, the cluster's execute-command "\
-       "configuration must log sessions to CloudWatch Logs / S3 and encrypt "\
-       "them with KMS (AU-12/SC-28). Verified via the cluster configuration."
+  desc "For services permitted to use ECS Exec, the cluster's "\
+       "executeCommandConfiguration must log sessions to CloudWatch Logs or S3 "\
+       "(logging=OVERRIDE with a destination) and encrypt them with a KMS key "\
+       "(AU-12/SC-28)."
   tag severity:              "medium"
   tag nist:                  ["AU-12 a", "SC-28"]
   tag cci:                   ["CCI-000172"]
@@ -48,22 +49,23 @@ control "EF-7.2" do
 
   allowed = input("ecs_exec_allowed_services")
   keys = ecs_service_keys
-  exec_services = keys.select do |k|
+  exec_clusters = keys.select do |k|
     svc = aws_ecs_service_full(cluster: k[:cluster], service: k[:service])
     svc.exec_enabled? && (allowed.include?(svc.service_name) || allowed.include?(svc.service_arn))
-  end
+  end.map { |k| k[:cluster] }.uniq
   impact 0.5
-  impact 0.0 if exec_services.empty?
-  only_if("No services with ECS Exec enabled + allowed") { !exec_services.empty? }
+  impact 0.0 if exec_clusters.empty?
+  only_if("No services with ECS Exec enabled + allowed") { !exec_clusters.empty? }
 
-  exec_services.map { |k| k[:cluster] }.uniq.each do |cluster_arn|
-    cfg = aws_ecs_cluster_full(cluster: cluster_arn).respond_to?(:execute_command_configuration) ? nil : nil
+  exec_clusters.each do |cluster_arn|
+    cluster = aws_ecs_cluster_full(cluster: cluster_arn)
     describe "ECS Exec audit logging on cluster #{cluster_arn.split('/').last}" do
-      skip "MANUAL/ATTESTATION: confirm the cluster executeCommandConfiguration "\
-           "logs sessions to CloudWatch Logs or S3 with kmsKeyId set. "\
-           "(Cluster configuration.executeCommandConfiguration is not exposed by "\
-           "describe_clusters in the vendored resource; verify via "\
-           "`aws ecs describe-clusters --include CONFIGURATIONS`.)"
+      it "must log sessions to CloudWatch Logs or S3 (logging=OVERRIDE with destination)" do
+        expect(cluster.exec_logging_configured?).to eq(true)
+      end
+      it "must encrypt ECS Exec sessions with a KMS key" do
+        expect(cluster.exec_kms_configured?).to eq(true)
+      end
     end
   end
 end

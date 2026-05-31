@@ -4,6 +4,7 @@
 #
 #   - container_insights (CIS 3.9)
 #   - fargate_ephemeral_storage_kms_key_id (CIS 11.1)
+#   - execute_command_configuration logging + KMS (EF-7.2)
 #   - tag_keys (CIS 3.11)
 #
 # Instantiation: `aws_ecs_cluster_full(cluster: 'prod-sparc')` (name or ARN).
@@ -21,6 +22,8 @@ class AwsEcsClusterFull < AwsResourceBase
 
   attr_reader :cluster_arn, :cluster_name, :status,
               :container_insights, :fargate_ephemeral_storage_kms_key_id,
+              :exec_logging, :exec_kms_key_id,
+              :exec_cw_log_group, :exec_s3_bucket,
               :tags, :tag_keys
 
   def initialize(opts = {})
@@ -47,6 +50,13 @@ class AwsEcsClusterFull < AwsResourceBase
       msc = c.configuration&.managed_storage_configuration
       @fargate_ephemeral_storage_kms_key_id = msc&.fargate_ephemeral_storage_kms_key_id
 
+      ecc = c.configuration&.execute_command_configuration
+      @exec_logging    = ecc&.logging   # NONE | DEFAULT | OVERRIDE
+      @exec_kms_key_id = ecc&.kms_key_id
+      lc = ecc&.log_configuration
+      @exec_cw_log_group = lc&.cloud_watch_log_group_name
+      @exec_s3_bucket    = lc&.s3_bucket_name
+
       @tags     = (c.tags || []).map { |t| { key: t.key, value: t.value } }
       @tag_keys = @tags.map { |t| t[:key] }
     end
@@ -62,6 +72,19 @@ class AwsEcsClusterFull < AwsResourceBase
 
   def fargate_ephemeral_storage_cmk_configured?
     !@fargate_ephemeral_storage_kms_key_id.nil? && !@fargate_ephemeral_storage_kms_key_id.empty?
+  end
+
+  # ECS Exec sessions are audited when the cluster's executeCommandConfiguration
+  # ships logs to CloudWatch Logs or S3 (logging=OVERRIDE with a destination).
+  # logging=DEFAULT sends only to the awslogs driver if the task defines one,
+  # which is not a guaranteed audit destination, so we require OVERRIDE.
+  def exec_logging_configured?
+    @exec_logging == "OVERRIDE" &&
+      (!@exec_cw_log_group.to_s.empty? || !@exec_s3_bucket.to_s.empty?)
+  end
+
+  def exec_kms_configured?
+    !@exec_kms_key_id.to_s.empty?
   end
 
   def resource_id
