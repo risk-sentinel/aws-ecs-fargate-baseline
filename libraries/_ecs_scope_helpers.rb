@@ -80,4 +80,9 @@ module EcsScopeHelpers
   end
 end
 
-Inspec::Rule.include(EcsScopeHelpers)
+# Top-level-qualify `::Inspec::Rule`: library files load inside an anonymous
+# class context under InSpec 7, so a bare `Inspec::Rule` resolves relative to
+# that class and raises `uninitialized constant Inspec::Rule` at exec time
+# (cinc-auditor `check` does not surface this; only `exec`/`json` does). Same
+# convention as cis-aws-compute / cis-postgresql.
+::Inspec::Rule.include(EcsScopeHelpers)
