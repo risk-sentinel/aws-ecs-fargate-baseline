@@ -74,3 +74,28 @@ inputs:
     type: array
     value: []
     description: Region allowlist for region-scoped checks; empty = current region.
+  # ---- document_attestation evidence-class bases (sparc-validate#154/#166) ----
+  - name: leveraged_evidence_base
+    type: string
+    value: ''
+    description: Base for leveraged-SYSTEM AWS authorizations (FedRAMP High / DoD SRG / SOC 2). The EF-9 AWS-inherited SRG-domain controls resolve their evidence manifest under this base.
+  - name: policy_provider_base
+    type: string
+    value: ''
+    description: Base for policy-PROVIDER documents the boundary leverages.
+  - name: boundary_docs_base
+    type: string
+    value: ''
+    description: Base for the boundary's OWN governance docs (e.g. EF-10.4 image-build / SBOM-currency record).
+  - name: inherited_evidence_uri
+    type: string
+    value: ''
+    description: Shared override URI for the EF-9 AWS-inherited controls. Empty -> resolves via leveraged_evidence_base to the aws-fargate-fedramp manifest; both unset -> Skip.
+  - name: leveraged_evidence_max_age_days
+    type: numeric
+    value: 365
+    description: Staleness window (days) for the AWS authorization evidence manifest.
+  - name: attestation_max_age_days
+    type: numeric
+    value: 365
+    description: Staleness window (days) for boundary attestations (EF-10.4).
