@@ -51,6 +51,9 @@ class AwsEcsTaskDefinitionFull < AwsResourceBase
       @requires_compatibilities = Array(td.requires_compatibilities)
       @task_role_arn            = td.task_role_arn
       @execution_role_arn       = td.execution_role_arn
+      rp = td.runtime_platform
+      @runtime_platform_os      = rp&.operating_system_family
+      @runtime_platform_cpu     = rp&.cpu_architecture
       @container_definitions    = (td.container_definitions || []).map(&:to_h)
 
       @container_names  = @container_definitions.map { |c| c[:name] }
@@ -67,6 +70,15 @@ class AwsEcsTaskDefinitionFull < AwsResourceBase
 
   def fargate?
     @requires_compatibilities.include?("FARGATE")
+  end
+
+  attr_reader :runtime_platform_os, :runtime_platform_cpu
+
+  # EF-10.3: runtimePlatform should pin both operatingSystemFamily and
+  # cpuArchitecture (explicit, not defaulted) so image/runtime expectations are
+  # deterministic across deploys.
+  def runtime_platform_pinned?
+    !@runtime_platform_os.to_s.empty? && !@runtime_platform_cpu.to_s.empty?
   end
 
   def host_network?

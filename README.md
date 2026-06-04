@@ -37,11 +37,19 @@ The DISA Container Platform SRG models registry + runtime + orchestrator +
 keystore as one product. In Fargate that product is **AWS-managed**, so
 ~135 of the SRG's 188 rules are **inherited** via AWS's FedRAMP/DoD
 authorization (host OS, container runtime, control plane, identity store,
-audit infrastructure, FIPS crypto modules). This profile asserts only the
+audit infrastructure, FIPS crypto modules). This profile asserts the
 **customer-configurable projection**: task definitions, services,
 clusters, IAM task/execution roles, network configuration, and the ECR
-repositories backing task images. The full inherited-vs-asserted matrix
-is tracked in risk-sentinel/sparc-validate issue #9.
+repositories backing task images.
+
+The inherited layers are **no longer trusted in prose** — the **EF-9** family
+surfaces AWS's FedRAMP/DoD authorization as freshness-checked HDF evidence
+(`document_attestation(:leveraged)`), and the **EF-10** family pulls the
+configurable items that had been mis-filed as "inherited" (GuardDuty Runtime
+Monitoring, account-level Container Insights, `runtimePlatform`, base-image
+currency) back into asserted. The full inherited-vs-asserted mapping is in
+[`docs/SRG-CTR-coverage-matrix.md`](docs/SRG-CTR-coverage-matrix.md)
+(risk-sentinel/sparc-validate#166).
 
 ## Scope
 
