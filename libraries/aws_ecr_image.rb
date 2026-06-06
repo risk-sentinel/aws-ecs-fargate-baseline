@@ -32,6 +32,32 @@ class AwsEcrImage < AwsResourceBase
     end
   end
 
+  # True when the image carries a signature (cosign/notation) — DescribeImageSigningStatus
+  # returns at least one signing status. Drives `should be_signed`.
+  def signed?
+    !Array(@aws.ecr_client.describe_image_signing_status(
+      repository_name: @repository_name, image_id: { image_digest: @image_digest }
+    ).signing_statuses).empty?
+  rescue StandardError
+    false
+  end
+
+  # True when the image has an SBOM referrer artifact (spdx / cyclonedx / in-toto).
+  # Drives `should have_sbom`.
+  def has_sbom?
+    refs = []
+    token = nil
+    loop do
+      resp = @aws.ecr_client.list_image_referrers(repository_name: @repository_name, subject_id: { image_digest: @image_digest }, next_token: token)
+      refs.concat(Array(resp.referrers))
+      token = resp.next_token
+      break if token.nil? || token.to_s.empty?
+    end
+    refs.any? { |r| %i[artifact_media_type artifact_type media_type].any? { |m| r.respond_to?(m) && r.public_send(m).to_s =~ /spdx|cyclonedx|in-toto|\bsbom\b|bom/i } }
+  rescue StandardError
+    false
+  end
+
   def to_s
     "ECR Image #{@repository_name}@#{@image_digest.to_s[0, 16]}"
   end
