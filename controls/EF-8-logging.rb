@@ -127,3 +127,70 @@ control "EF-8.5" do
     end
   end
 end
+
+control "EF-8.6" do
+  title "Container logs must ship to a central/off-host driver"
+  desc "Each container's logConfiguration.logDriver must be a central, off-host "\
+       "driver (awslogs, awsfirelens, or splunk) so audit records are stored "\
+       "durably away from the ephemeral task, not on a host-bound driver "\
+       "(json-file, journald, syslog, local) that is lost when the task stops "\
+       "(AU-4 / AU-9(2) — secondary/central audit storage). EF-8.1 asserts a "\
+       "logConfiguration exists; this asserts it off-loads the records."
+  tag severity:              "medium"
+  tag nist:                  ["AU-4", "AU-9 (2)"]
+  tag cci:                   ["CCI-001851"]
+  tag local_number:          "EF-8.6"
+  tag srg:                   "SRG-APP-000358-CTR-000805"
+  tag applicable_partitions: ["aws", "aws-us-gov"]
+  tag implementation_status: "implemented"
+
+  tds = fargate_task_definition_arns
+  impact 0.5
+  impact 0.0 if tds.empty?
+  only_if("No Fargate task definitions in scope") { !tds.empty? }
+
+  tds.each do |arn|
+    td = aws_ecs_task_definition_full(task_definition: arn)
+    describe "Containers on a local/host-bound log driver in #{td.family}:#{td.revision}" do
+      subject { td.containers_with_local_log_driver }
+      it { should be_empty }
+    end
+  end
+end
+
+control "EF-8.7" do
+  title "CloudWatch log groups for tasks must set a retention policy"
+  desc "Each CloudWatch Logs group referenced by an awslogs-driver container "\
+       "must have an explicit retention policy of at least "\
+       "`min_log_retention_days` days, so audit-record storage capacity is "\
+       "allocated and bounded rather than left to never-expire (AU-4 — allocate "\
+       "audit-record storage capacity). A never-expire (unset) group fails."
+  tag severity:              "low"
+  tag nist:                  ["AU-4", "AU-11"]
+  tag cci:                   ["CCI-001849"]
+  tag local_number:          "EF-8.7"
+  tag srg:                   "SRG-APP-000357-CTR-000800"
+  tag applicable_partitions: ["aws", "aws-us-gov"]
+  tag implementation_status: "implemented"
+
+  tds    = fargate_task_definition_arns
+  groups = tds.flat_map { |a| aws_ecs_task_definition_full(task_definition: a).awslogs_group_names }.compact.uniq
+  min    = input("min_log_retention_days", value: 30)
+  impact 0.3
+  impact 0.0 if groups.empty?
+  only_if("No awslogs CloudWatch log groups referenced by Fargate task defs") { !groups.empty? }
+
+  groups.each do |g|
+    lg        = aws_cloudwatch_log_group(log_group_name: g)
+    retention = lg.exists? ? lg.retention_in_days : nil
+    describe "CloudWatch log group #{g} retention (days)" do
+      subject { retention }
+      it "is set (not never-expire)" do
+        expect(retention).not_to be_nil
+      end
+      it "is at least #{min} days" do
+        expect(retention.to_i).to be >= min.to_i
+      end
+    end
+  end
+end

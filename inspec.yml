@@ -92,6 +92,26 @@ inputs:
     type: array
     value: []
     description: Region allowlist for region-scoped checks; empty = current region.
+  - name: cert_expiry_warning_days
+    type: numeric
+    value: 30
+    description: >-
+      Minimum days an ALB HTTPS-listener ACM certificate must have before
+      expiry (EF-11.7). A cert with fewer days remaining fails.
+  - name: min_log_retention_days
+    type: numeric
+    value: 30
+    description: >-
+      Minimum retention (days) required on the CloudWatch Logs groups backing
+      awslogs-driver containers (EF-8.7). A never-expire or shorter group fails.
+  - name: tls_termination
+    type: string
+    value: alb
+    description: >-
+      Where this workload terminates TLS, for the distributed-TLS model
+      (EF-12): 'alb' (the ALB terminates; EF-11 is authoritative), 'proxy'
+      (a reverse-proxy sidecar terminates; EF-12.1 enforces proxy + TLS
+      material, cipher config validated by cis-nginx), or 'both'.
   # ---- document_attestation evidence-class bases (sparc-validate#154/#166) ----
   - name: leveraged_evidence_base
     type: string
