@@ -98,6 +98,7 @@ control "EF-6.5" do
   tag cci:                   ["CCI-000051", "CCI-001199"]
   tag local_number:          "EF-6.5"
   tag cis_source:            "CIS AWS Compute v1.1.0 C-11.1"
+  tag srg:                   "SRG-APP-000429-CTR-001060"
   tag applicable_partitions: ["aws", "aws-us-gov"]
   tag implementation_status: "implemented"
 
@@ -110,6 +111,37 @@ control "EF-6.5" do
     describe "Fargate ephemeral storage CMK for cluster #{c.split('/').last}" do
       subject { aws_ecs_cluster_full(cluster: c).fargate_ephemeral_storage_cmk_configured? }
       it { should eq true }
+    end
+  end
+end
+
+control "EF-6.6" do
+  title "Task EFS volumes must enable in-transit encryption"
+  desc "Any task definition that mounts an Amazon EFS volume must set "\
+       "efsVolumeConfiguration.transitEncryption to ENABLED, so the NFS traffic "\
+       "between the task and EFS is TLS-protected (SC-8 / SC-8(1)). This is the "\
+       "task's east-west storage transit, distinct from the north-south ALB/proxy "\
+       "TLS covered by EF-11/EF-12. Scoped to task defs that declare EFS volumes."
+  tag severity:              "high"
+  tag nist:                  ["SC-8", "SC-8 (1)", "SC-28"]
+  tag cci:                   ["CCI-002418", "CCI-002421"]
+  tag local_number:          "EF-6.6"
+  tag srg:                   "SRG-APP-000439-CTR-001080"
+  tag applicable_partitions: ["aws", "aws-us-gov"]
+  tag implementation_status: "implemented"
+
+  arns        = fargate_task_definition_arns
+  efs_tds     = arns.select { |a| aws_ecs_task_definition_full(task_definition: a).efs_volumes? }
+  impact 0.7
+  impact 0.0 if efs_tds.empty?
+  only_if("No Fargate task definitions mount an EFS volume") { !efs_tds.empty? }
+
+  efs_tds.each do |arn|
+    td       = aws_ecs_task_definition_full(task_definition: arn)
+    offenders = td.efs_volumes_without_transit_encryption
+    describe "Task #{td.family} EFS volumes with transit encryption ENABLED" do
+      subject { offenders }
+      it { should be_empty }
     end
   end
 end

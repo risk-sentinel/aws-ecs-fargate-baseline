@@ -98,6 +98,12 @@ inputs:
     description: >-
       Minimum days an ALB HTTPS-listener ACM certificate must have before
       expiry (EF-11.7). A cert with fewer days remaining fails.
+  - name: min_log_retention_days
+    type: numeric
+    value: 30
+    description: >-
+      Minimum retention (days) required on the CloudWatch Logs groups backing
+      awslogs-driver containers (EF-8.7). A never-expire or shorter group fails.
   - name: tls_termination
     type: string
     value: alb

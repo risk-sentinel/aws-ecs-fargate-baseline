@@ -27,7 +27,7 @@ class AwsEcsTaskDefinitionFull < AwsResourceBase
               :requires_compatibilities,
               :task_role_arn, :execution_role_arn,
               :container_names, :container_images, :container_definitions,
-              :tags, :tag_keys
+              :volumes, :tags, :tag_keys
 
   def initialize(opts = {})
     opts = { task_definition: opts } if opts.is_a?(String)
@@ -58,6 +58,7 @@ class AwsEcsTaskDefinitionFull < AwsResourceBase
 
       @container_names  = @container_definitions.map { |c| c[:name] }
       @container_images = @container_definitions.map { |c| c[:image] }
+      @volumes          = (td.volumes || []).map(&:to_h)
 
       @tags     = (resp.tags || []).map { |t| { key: t.key, value: t.value } }
       @tag_keys = @tags.map { |t| t[:key] }
@@ -107,6 +108,44 @@ class AwsEcsTaskDefinitionFull < AwsResourceBase
       log = c[:log_configuration]
       !(log && log[:log_driver] && !log[:log_driver].to_s.empty?)
     end
+  end
+
+  # Central / off-host log drivers that ship audit records off the task to a
+  # durable external sink (SRG-APP-000358 — secondary/central storage).
+  CENTRAL_LOG_DRIVERS = %w[awslogs awsfirelens splunk].freeze
+
+  # Containers whose log driver is local/host-bound (json-file, journald, syslog,
+  # fluentd, local, none) or missing — audit output is not shipped off the task.
+  def containers_with_local_log_driver
+    @container_definitions.reject do |c|
+      log = c[:log_configuration]
+      log && CENTRAL_LOG_DRIVERS.include?(log[:log_driver].to_s)
+    end.map { |c| "#{c[:name]}:#{(c[:log_configuration] && c[:log_configuration][:log_driver]) || 'none'}" }
+  end
+
+  # CloudWatch Logs group names referenced by awslogs-driver containers, for the
+  # log-group retention check (SRG-APP-000357 — allocate audit-record capacity).
+  def awslogs_group_names
+    @container_definitions.map do |c|
+      log = c[:log_configuration]
+      next nil unless log && log[:log_driver].to_s == "awslogs"
+      opts = log[:options] || {}
+      opts["awslogs-group"] || opts[:"awslogs-group"]
+    end.compact.uniq
+  end
+
+  # --- task-level EFS volumes -----------------------------------------
+
+  def efs_volumes?
+    Array(@volumes).any? { |v| v[:efs_volume_configuration] }
+  end
+
+  # EFS volumes whose NFS transit encryption is not ENABLED (SRG-APP-000439 —
+  # protect transmitted information; the task's east-west storage transit).
+  def efs_volumes_without_transit_encryption
+    Array(@volumes).select { |v| v[:efs_volume_configuration] }
+                   .reject { |v| (v[:efs_volume_configuration][:transit_encryption]).to_s.upcase == "ENABLED" }
+                   .map { |v| v[:name] }
   end
 
   SECRET_SHAPED_KEY_PATTERN = /password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key/i.freeze
