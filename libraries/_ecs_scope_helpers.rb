@@ -61,6 +61,41 @@ module EcsScopeHelpers
     @ecr_repos_in_scope ||= task_image_refs.map { |r| r[:repo] }.compact.uniq
   end
 
+  # Reverse-proxy / web-proxy container images by well-known name.
+  PROXY_IMAGE = /nginx|envoy|haproxy|traefik|httpd|\bapache\b|\bproxy\b/i.freeze
+  # TLS key material — secret names, env names, or mount paths that carry a
+  # certificate / private key (signal that the container terminates TLS).
+  TLS_MATERIAL = /tls|ssl|cert|\bkey\b|pem|crt|pkcs/i.freeze
+
+  # Reverse-proxy containers across in-scope Fargate task defs:
+  #   [{family:, name:, image:, def: <container-def hash>}, ...]
+  def proxy_containers
+    @proxy_containers ||= begin
+      out = []
+      fargate_task_definition_arns.each do |arn|
+        td = aws_ecs_task_definition_full(task_definition: arn)
+        td.container_definitions.each do |c|
+          next unless PROXY_IMAGE.match?(c[:image].to_s) || PROXY_IMAGE.match?(c[:name].to_s)
+          out << { family: td.family, name: c[:name], image: c[:image], def: c }
+        end
+      end
+      out
+    rescue StandardError
+      []
+    end
+  end
+
+  # True when a container def has TLS key material wired in — a secret, an env
+  # var, or a mounted volume whose name/path looks like a certificate or key.
+  # This is the task-def-observable signal that the proxy TERMINATES TLS (it
+  # holds the private key); the cipher/protocol config itself is validated inside
+  # the container by cis-nginx.
+  def container_has_tls_material?(c)
+    Array(c[:secrets]).any?     { |s| TLS_MATERIAL.match?(s[:name].to_s) } ||
+      Array(c[:environment]).any? { |e| TLS_MATERIAL.match?(e[:name].to_s) } ||
+      Array(c[:mount_points]).any? { |m| TLS_MATERIAL.match?(m[:container_path].to_s) || TLS_MATERIAL.match?(m[:source_volume].to_s) }
+  end
+
   def parse_ecr_image(img)
     s = img.to_s
     out = { raw: s, repo: nil, digest: nil, registry: nil }
